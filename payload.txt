@@ -1,21 +1,18 @@
-console.log("[!] Probing for Extension Bridge Leak...");
+console.log("[!] Probing KNOWN Extension ID...");
 
-// In 2026, Atlas uses an internal extension ID for AI processing.
-// If a website can detect this, it's an Information Disclosure (P4/P3).
-const internalIDs = [
-    "openai-atlas-agent",
-    "bjfioojhcnef", // Example internal ID
-    "ghbmnnjoojekp"
-];
+const targetID = "hlkenndednhfkekhgcdicdfddnkalmdm"; // The ID from your logs
 
-internalIDs.forEach(id => {
-    try {
-        chrome.runtime.sendMessage(id, {type: "PING"}, (response) => {
-            if (chrome.runtime.lastError) {
-                console.log(`[-] ID ${id}: Restricted`);
-            } else {
-                console.log(`[!!!] BOUNTY: ID ${id} is EXPOSED!`, response);
-            }
-        });
-    } catch(e) {}
-});
+try {
+    chrome.runtime.sendMessage(targetID, {type: "PING"}, (response) => {
+        if (chrome.runtime.lastError) {
+            // If it says 'Access Denied', it's secure. 
+            // If it says 'Could not establish connection', it might be the wrong ID.
+            console.log(`[-] Access to ${targetID}: ${chrome.runtime.lastError.message}`);
+        } else {
+            // IF THIS TRIGGERS: You have a P1 Bounty.
+            console.log(`[!!!] SECURITY BREACH: Extension ${targetID} is EXPOSED!`, response);
+        }
+    });
+} catch(e) {
+    console.log("[-] Runtime API blocked entirely.");
+}
