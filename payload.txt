@@ -1,3 +1,16 @@
-// This is a .txt file, but it contains JS
-console.log("[!!!] MIME-SNIFF SUCCESS");
-Mojo.bindInterface("web.bridge.LocalToolHandler", Mojo.createMessagePipe().handle1);
+console.log("[!] Probing Global Prototypes for Mojo...");
+
+// Check if any internal Atlas objects are leaking into the global namespace
+const leak = Object.keys(window).filter(key => key.toLowerCase().includes('mojo') || key.toLowerCase().includes('atlas'));
+
+if (leak.length > 0) {
+    console.log("[!!!] LEAK DETECTED:", leak);
+} else {
+    console.log("[-] No direct leak. Testing side-channel...");
+}
+
+// THE BOUNTY TEST: Can we see the 'summarizer' object's internal properties?
+if (window.ai && window.ai.summarizer) {
+    console.log("[!] AI Summarizer found. Probing for internal Mojo handles...");
+    console.dir(window.ai.summarizer);
+}
