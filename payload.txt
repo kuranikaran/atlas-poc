@@ -1,30 +1,18 @@
-console.log("[!] Initiating Deep Shadow Probe...");
-
-// 1. Try to "Catch" Mojo via an error stack trace leak
 try {
-    throw new Error();
+    throw new Error("Bounty Hunter Probe");
 } catch (e) {
-    if (e.stack.includes('mojo') || e.stack.includes('atlas')) {
-        console.log("[!!!] STACK LEAK DETECTED: Internal paths visible!");
+    console.log("[!] RAW STACK TRACE:");
+    console.log(e.stack); // This is the gold mine
+
+    // Search for internal patterns
+    const internalPaths = e.stack.match(/(atlas|openai|mojo|chrome-extension):\/\/[^:)]+/g);
+    if (internalPaths) {
+        console.log("[!!!] LEAKED INTERNAL PATHS:", [...new Set(internalPaths)]);
+        
+        // BOUNTY TEST: Can we actually FETCH one of these internal files?
+        internalPaths.forEach(path => {
+            fetch(path).then(r => console.log(`[?] Access to ${path}: SUCCESS`))
+                       .catch(e => console.log(`[x] Access to ${path}: BLOCKED`));
+        });
     }
 }
-
-// 2. Test for "Hidden" Getters on the Window object
-const checkHidden = (obj, name) => {
-    try {
-        const desc = Object.getOwnPropertyDescriptor(obj, name);
-        if (desc) console.log(`[!!!] FOUND HIDDEN PROPERTY: ${name}`);
-    } catch(e) {}
-};
-
-['Mojo', 'MojoInterfaceBroker', 'AtlasInternal', 'ai'].forEach(p => checkHidden(window, p));
-
-// 3. The "State" Probe: Does the browser leak your F1 visa/student status into the DOM?
-// Since Atlas "sees" your downloads, let's see if it injected them into the page metadata
-const meta = document.querySelectorAll('meta');
-console.log(`[*] Auditing ${meta.length} meta tags for leaked personal context...`);
-meta.forEach(m => {
-    if (m.content.includes('Karan') || m.content.includes('visa')) {
-        console.log("[!!!] PRIVACY LEAK: Personal data in DOM!", m.outerHTML);
-    }
-});
