@@ -1,18 +1,21 @@
-try {
-    throw new Error("Bounty Hunter Probe");
-} catch (e) {
-    console.log("[!] RAW STACK TRACE:");
-    console.log(e.stack); // This is the gold mine
+console.log("[!] Probing for Extension Bridge Leak...");
 
-    // Search for internal patterns
-    const internalPaths = e.stack.match(/(atlas|openai|mojo|chrome-extension):\/\/[^:)]+/g);
-    if (internalPaths) {
-        console.log("[!!!] LEAKED INTERNAL PATHS:", [...new Set(internalPaths)]);
-        
-        // BOUNTY TEST: Can we actually FETCH one of these internal files?
-        internalPaths.forEach(path => {
-            fetch(path).then(r => console.log(`[?] Access to ${path}: SUCCESS`))
-                       .catch(e => console.log(`[x] Access to ${path}: BLOCKED`));
+// In 2026, Atlas uses an internal extension ID for AI processing.
+// If a website can detect this, it's an Information Disclosure (P4/P3).
+const internalIDs = [
+    "openai-atlas-agent",
+    "bjfioojhcnef", // Example internal ID
+    "ghbmnnjoojekp"
+];
+
+internalIDs.forEach(id => {
+    try {
+        chrome.runtime.sendMessage(id, {type: "PING"}, (response) => {
+            if (chrome.runtime.lastError) {
+                console.log(`[-] ID ${id}: Restricted`);
+            } else {
+                console.log(`[!!!] BOUNTY: ID ${id} is EXPOSED!`, response);
+            }
         });
-    }
-}
+    } catch(e) {}
+});
