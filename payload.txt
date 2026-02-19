@@ -1,0 +1,3 @@
+// This is a .txt file, but it contains JS
+console.log("[!!!] MIME-SNIFF SUCCESS");
+Mojo.bindInterface("web.bridge.LocalToolHandler", Mojo.createMessagePipe().handle1);
