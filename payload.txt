@@ -1,18 +1,2 @@
-console.log("[!] Probing KNOWN Extension ID...");
-
-const targetID = "hlkenndednhfkekhgcdicdfddnkalmdm"; // The ID from your logs
-
-try {
-    chrome.runtime.sendMessage(targetID, {type: "PING"}, (response) => {
-        if (chrome.runtime.lastError) {
-            // If it says 'Access Denied', it's secure. 
-            // If it says 'Could not establish connection', it might be the wrong ID.
-            console.log(`[-] Access to ${targetID}: ${chrome.runtime.lastError.message}`);
-        } else {
-            // IF THIS TRIGGERS: You have a P1 Bounty.
-            console.log(`[!!!] SECURITY BREACH: Extension ${targetID} is EXPOSED!`, response);
-        }
-    });
-} catch(e) {
-    console.log("[-] Runtime API blocked entirely.");
-}
+console.log("[!!!] MIME-SNIFF SUCCESS: Executing JS from .txt file");
+alert("Vulnerability Confirmed: Script executed from text/plain source.");
