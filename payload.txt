@@ -1,16 +1,25 @@
 console.log("[!] Probing Global Prototypes for Mojo...");
 
-// Check if any internal Atlas objects are leaking into the global namespace
-const leak = Object.keys(window).filter(key => key.toLowerCase().includes('mojo') || key.toLowerCase().includes('atlas'));
+// 1. Search for ANY hidden properties that might be Mojo in disguise
+const leak = Object.keys(window).filter(key => 
+    key.toLowerCase().includes('mojo') || 
+    key.toLowerCase().includes('atlas') ||
+    key.toLowerCase().includes('bridge')
+);
 
 if (leak.length > 0) {
-    console.log("[!!!] LEAK DETECTED:", leak);
+    console.log("[!!!] NAMESPACE LEAK DETECTED:", leak);
 } else {
-    console.log("[-] No direct leak. Testing side-channel...");
+    console.log("[-] No direct name leak found.");
 }
 
-// THE BOUNTY TEST: Can we see the 'summarizer' object's internal properties?
-if (window.ai && window.ai.summarizer) {
-    console.log("[!] AI Summarizer found. Probing for internal Mojo handles...");
-    console.dir(window.ai.summarizer);
+// 2. The "AI-Hook" Probe: This is a 2026-specific bounty target
+if (window.ai) {
+    console.log("[!!!] window.ai detected! This is a high-privilege object.");
+    console.dir(window.ai);
+}
+
+// 3. Test for Prototype Pollution
+if (Object.prototype.Mojo) {
+    console.log("[!!!] CRITICAL: Mojo leaked into Object Prototype!");
 }
