@@ -1,25 +1,30 @@
-console.log("[!] Probing Global Prototypes for Mojo...");
+console.log("[!] Initiating Deep Shadow Probe...");
 
-// 1. Search for ANY hidden properties that might be Mojo in disguise
-const leak = Object.keys(window).filter(key => 
-    key.toLowerCase().includes('mojo') || 
-    key.toLowerCase().includes('atlas') ||
-    key.toLowerCase().includes('bridge')
-);
-
-if (leak.length > 0) {
-    console.log("[!!!] NAMESPACE LEAK DETECTED:", leak);
-} else {
-    console.log("[-] No direct name leak found.");
+// 1. Try to "Catch" Mojo via an error stack trace leak
+try {
+    throw new Error();
+} catch (e) {
+    if (e.stack.includes('mojo') || e.stack.includes('atlas')) {
+        console.log("[!!!] STACK LEAK DETECTED: Internal paths visible!");
+    }
 }
 
-// 2. The "AI-Hook" Probe: This is a 2026-specific bounty target
-if (window.ai) {
-    console.log("[!!!] window.ai detected! This is a high-privilege object.");
-    console.dir(window.ai);
-}
+// 2. Test for "Hidden" Getters on the Window object
+const checkHidden = (obj, name) => {
+    try {
+        const desc = Object.getOwnPropertyDescriptor(obj, name);
+        if (desc) console.log(`[!!!] FOUND HIDDEN PROPERTY: ${name}`);
+    } catch(e) {}
+};
 
-// 3. Test for Prototype Pollution
-if (Object.prototype.Mojo) {
-    console.log("[!!!] CRITICAL: Mojo leaked into Object Prototype!");
-}
+['Mojo', 'MojoInterfaceBroker', 'AtlasInternal', 'ai'].forEach(p => checkHidden(window, p));
+
+// 3. The "State" Probe: Does the browser leak your F1 visa/student status into the DOM?
+// Since Atlas "sees" your downloads, let's see if it injected them into the page metadata
+const meta = document.querySelectorAll('meta');
+console.log(`[*] Auditing ${meta.length} meta tags for leaked personal context...`);
+meta.forEach(m => {
+    if (m.content.includes('Karan') || m.content.includes('visa')) {
+        console.log("[!!!] PRIVACY LEAK: Personal data in DOM!", m.outerHTML);
+    }
+});
